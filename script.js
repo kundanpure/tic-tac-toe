@@ -2,10 +2,12 @@ const cells = document.querySelectorAll('.cell');
 const boardElement = document.getElementById('board');
 const messageElement = document.getElementById('message');
 const restartButton = document.getElementById('restartButton');
+const difficultySelect = document.getElementById('difficulty');
 
 let board = ['', '', '', '', '', '', '', '', ''];
 let currentPlayer = 'X';
 let isGameActive = true;
+let difficulty = 'medium';
 
 const winningConditions = [
     [0, 1, 2],
@@ -59,12 +61,64 @@ const handleResultValidation = () => {
 };
 
 const aiMove = () => {
+    switch (difficulty) {
+        case 'very_easy':
+            randomMove();
+            break;
+        case 'easy':
+            heuristicMove();
+            break;
+        case 'medium':
+            depthLimitedMinimax(1);
+            break;
+        case 'hard':
+            depthLimitedMinimax(3);
+            break;
+        case 'impossible':
+            depthLimitedMinimax(Infinity);
+            break;
+    }
+    handleResultValidation();
+};
+
+const randomMove = () => {
+    let availableCells = [];
+    for (let i = 0; i < board.length; i++) {
+        if (board[i] === '') {
+            availableCells.push(i);
+        }
+    }
+    const randomIndex = Math.floor(Math.random() * availableCells.length);
+    const move = availableCells[randomIndex];
+    handleCellPlayed(cells[move], move);
+};
+
+const heuristicMove = () => {
+    for (let i = 0; i < winningConditions.length; i++) {
+        const [a, b, c] = winningConditions[i];
+        if (board[a] === 'O' && board[b] === 'O' && board[c] === '') {
+            handleCellPlayed(cells[c], c);
+            return;
+        }
+        if (board[a] === 'O' && board[b] === '' && board[c] === 'O') {
+            handleCellPlayed(cells[b], b);
+            return;
+        }
+        if (board[a] === '' && board[b] === 'O' && board[c] === 'O') {
+            handleCellPlayed(cells[a], a);
+            return;
+        }
+    }
+    randomMove();
+};
+
+const depthLimitedMinimax = (limit) => {
     let bestScore = -Infinity;
     let move;
     for (let i = 0; i < board.length; i++) {
         if (board[i] === '') {
             board[i] = 'O';
-            let score = minimax(board, 0, false);
+            let score = minimax(board, 0, false, limit);
             board[i] = '';
             if (score > bestScore) {
                 bestScore = score;
@@ -73,10 +127,9 @@ const aiMove = () => {
         }
     }
     handleCellPlayed(cells[move], move);
-    handleResultValidation();
 };
 
-const minimax = (board, depth, isMaximizing) => {
+const minimax = (board, depth, isMaximizing, limit) => {
     let scores = {
         'X': -1,
         'O': 1,
@@ -87,12 +140,16 @@ const minimax = (board, depth, isMaximizing) => {
         return scores[result];
     }
 
+    if (depth >= limit) {
+        return 0;
+    }
+
     if (isMaximizing) {
         let bestScore = -Infinity;
         for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
                 board[i] = 'O';
-                let score = minimax(board, depth + 1, false);
+                let score = minimax(board, depth + 1, false, limit);
                 board[i] = '';
                 bestScore = Math.max(score, bestScore);
             }
@@ -103,7 +160,7 @@ const minimax = (board, depth, isMaximizing) => {
         for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
                 board[i] = 'X';
-                let score = minimax(board, depth + 1, true);
+                let score = minimax(board, depth + 1, true, limit);
                 board[i] = '';
                 bestScore = Math.min(score, bestScore);
             }
@@ -148,5 +205,10 @@ const handleRestartGame = () => {
     cells.forEach(cell => cell.innerHTML = '');
 };
 
+const handleDifficultyChange = () => {
+    difficulty = difficultySelect.value;
+};
+
 cells.forEach(cell => cell.addEventListener('click', handleCellClick));
 restartButton.addEventListener('click', handleRestartGame);
+difficultySelect.addEventListener('change', handleDifficultyChange);
